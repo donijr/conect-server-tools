@@ -1,0 +1,296 @@
+#!/bin/bash
+
+#### FUNCOES ####
+
+function verificar_wsl (){
+    # Se o wsl estiver sendo executado então retorna 0, senão retorna 1
+	which wsl.exe >>/dev/null
+	if [ $(echo $?) -eq 0 ]; then
+		return 1 
+	else 
+		return 0
+	fi
+}
+
+function retornar_estado_openvpn (){
+
+    # Se vpn esta ativa retorna 0, caso contrário 1
+	if ! verificar_wsl; then	
+		if [ $(tasklist.exe | grep -c openvpn.exe) -eq 0 ]; then
+			return 1
+		fi
+	elif [ $(ip link show up | grep -Ec "tun") -eq 0 ]; then
+		return 1
+	else
+		return 0
+	fi	
+}
+
+function capturar_resposta_sim_nao (){
+    read -p "Deseja continuar (s/n)?: " -e resposta
+    case "${resposta}" in
+        s|S)
+            return 0
+            ;;
+        n|N)
+            return 1
+            ;;
+        *)
+            echo "Resposta incorreta"
+            capturar_resposta_sim_nao
+            ;;
+    esac
+}
+
+function ignorar_conexao_vpn (){
+    # Para ignorar conexao com a vpn retorna 0. E retorna 1 para não ignorar conexão com a vpn
+    if ! retornar_estado_openvpn; then
+		echo -e "\nERRO NA CONEXÃO - Conexão com VPN Obrigatória\n"
+	    	if capturar_resposta_sim_nao; then
+				return 0
+			else
+				return 1
+			fi
+	fi
+}
+
+function remover_known_host () {
+# Remove aviso de known host ao conectar em um servidor
+    local ip=${1}
+
+    ssh-keygen -f "${HOME}/.ssh/known_hosts" -R "${ip}"
+}
+
+function verificar_campo_obrigatório (){
+    local identificador=${1}
+    local nome_key=${2}
+    local usuario=${3}
+    local ip=${4}
+
+    if [[ -z ${identificador} ]]; then
+        echo "Campo idendificador está vazio. Por favor verificar arquivo ${arquivo_dados}"
+        exit 1
+    elif [[ -z ${nome_key} ]]; then
+        echo "Campo nomeKey está vazio. Por favor verificar arquivo ${arquivo_dados}"
+        exit 1
+    elif [[ -z ${usuario} ]]; then
+        echo "Campo usuario está vazio. Por favor verificar arquivo ${arquivo_dados}"
+        exit 1
+    elif [[ -z ${ip} ]]; then
+        echo "Campo ip está vazio. Por favor verificar arquivo ${arquivo_dados}"
+        exit 1
+    fi
+}
+
+
+function criar_pastas_transferencia (){
+    local localizacao_key=${1}
+    local usuario=${2}
+    local ip=${3}
+    local pasta_servidor_transferencia_arquivos=${4}
+    local idenficador
+
+    ssh -i ${localizacao_key} ${usuario}@${ip}  mkdir -p ${pasta_servidor_transferencia_arquivos}/${valor_data}/scp
+}
+
+function conectar_ssh (){
+
+    local localizacao_key=${1}
+    local usuario=${2}
+    local ip=${3}
+    local pasta_servidor_transferencia_arquivos=${4}
+   
+    # Se ignorar_conexao_vpn retornar 0 OU retorna_estado_openvon retornar 0
+	if ignorar_conexao_vpn || retornar_estado_openvpn; then
+		#ssh -i ${localizacao_key} ${usuario}@${ip}  mkdir -p "${pasta_servidor_transferencia_arquivos}/${valor_data}/scp"
+		criar_pastas_transferencia ${localizacao_key} ${usuario} ${ip} ${pasta_servidor_transferencia_arquivos}
+        ssh -i ${localizacao_key} ${usuario}@${ip}
+	fi
+}
+
+function conectar_scp_local_remote(){
+
+    local localizacao_key=${1}
+    local usuario=${2}
+    local ip=${3}
+    local pasta_servidor_transferencia_arquivos=${4}
+
+    # Se ignorar_conexao_vpn retornar 0 OU retorna_estado_openvon retornar 0
+    if ignorar_conexao_vpn || retornar_estado_openvpn; then
+		read  -p "Digite o diretorio ou arquivo: " -e arquivo
+		#ssh -i ${localizacao_key} ${usuario}@${ip}  mkdir -p ${pasta_servidor_transferencia_arquivos}/${valor_data}
+        criar_pastas_transferencia ${localizacao_key} ${usuario} ${ip} ${pasta_servidor_transferencia_arquivos}
+
+		if [[ -d ${arquivo} ]]; then
+			scp -i "${localizacao_key}" "${arquivo}"/* "${usuario}"@"${ip}":/home/"${usuario}"/"${pasta_servidor_transferencia_arquivos}"/"${valor_data}"
+            echo -e "\nArquivo enviado para /home/${usuario}/${pasta_servidor_transferencia_arquivos}/${valor_data}\n"
+		elif [[ -f ${arquivo} ]]; then
+			scp -i "${localizacao_key}" "${arquivo}" "${usuario}"@"${ip}":/home/"${usuario}"/"${pasta_servidor_transferencia_arquivos}"/"${valor_data}"
+            echo -e "\nArquivo enviado para /home/${usuario}/${pasta_servidor_transferencia_arquivos}/${valor_data}\n"
+        elif [[ ! -e ${arquivo} ]]; then
+			echo -e "\nArquivo ou diretorio nao existe!\n"
+		fi
+	fi
+}
+
+
+function conectar_scp_remote_local (){
+
+    local localizacao_key=${1}
+    local usuario=${2}
+    local ip=${3}
+    local pasta_servidor_transferencia_arquivos=${4}
+
+    # Se ignorar_conexao_vpn retornar 0 OU retorna_estado_openvon retornar 0
+    if ignorar_conexao_vpn || retornar_estado_openvpn; then
+		scp -rp -i "${localizacao_key}" "${usuario}"@"${ip}":/home/"${usuario}"/"${pasta_servidor_transferencia_arquivos}"/"${valor_data}"/scp/* "${pasta_local_arquivos_baixados}"
+        echo -e "\nArquivo enviado para ${pasta_local_arquivos_baixados}"
+	fi
+}
+
+
+function retornar_estado_padrao_servidor(){
+    local padrao_servidor="${1}"
+
+    if $(grep -q -e "\b${padrao_servidor}\b" ${arquivo_dados}); then
+        echo $?
+        return 1
+    else
+        # se encontrou o padrao
+        #echo 1
+        echo $?
+        return 0
+    fi
+    
+}
+
+function obter_valor_dados_servidor(){
+    local padrao_servidor="${1}"
+
+    local linha_dados_servidor=$(grep -e "\b${padrao_servidor}\b" ${arquivo_dados})
+    local identificador=$(cut -d',' -f1 <<< ${linha_dados_servidor})
+    local ip=$(cut -d',' -f2 <<< ${linha_dados_servidor} )
+    local cliente=$(cut -d',' -f3 <<< ${linha_dados_servidor} )
+    local descricao=$(cut -d',' -f4 <<< ${linha_dados_servidor} )
+    local servidor=$(cut -d',' -f5 <<< ${linha_dados_servidor} )
+    local tipo_ambiente=$(cut -d',' -f6 <<< ${linha_dados_servidor} )
+    local informacao_extra=$(cut -d',' -f7 <<< ${linha_dados_servidor})
+    local usuario=$(cut -d',' -f8 <<< ${linha_dados_servidor} )
+    local nome_key=$(cut -d',' -f9 <<< ${linha_dados_servidor} )
+    local localizacao_key="${pasta_keys}/${nome_key}"
+    local provedor_cloud=$(cut -d',' -f10 <<< ${linha_dados_servidor})
+   
+    echo -n "${identificador},"
+    echo -n "${ip},"
+    echo -n "${cliente},"
+    echo -n "${descricao},"
+    echo -n "${servidor},"
+    echo -n "${tipo_ambiente},"
+    echo -n "${usuario},"
+    echo -n "${nome_key},"
+    echo -n "${localizacao_key},"
+    echo -n "${provedor_cloud},"
+    echo -n "${informacao_extra}"
+}
+
+function exibir_informacao_servidor (){
+    local padrao_servidor="${1}"
+    local valor_dados_servidor=$(obter_valor_dados_servidor ${padrao_servidor})
+    local ip=$(cut -d',' -f2 <<< ${valor_dados_servidor})
+    local descricao=$(cut -d',' -f4 <<< ${valor_dados_servidor})
+    local cliente=$(cut -d',' -f3 <<< ${valor_dados_servidor})
+    local servidor=$(cut -d',' -f5 <<< ${valor_dados_servidor})
+    local tipo_ambiente=$(cut -d',' -f6 <<< ${valor_dados_servidor})
+    local usuario=$(cut -d',' -f7 <<< ${valor_dados_servidor})
+    local provedor_cloud=$(cut -d',' -f10 <<< ${valor_dados_servidor})
+    local informacao_extra=$(cut -d',' -f11 <<< ${valor_dados_servidor})
+           
+    echo -e "\n----------------------------------------------------------------------------------"
+    echo -e "${descricao}"
+    echo -e "----------------------------------------------------------------------------------"
+    echo -e "IP: ${ip} - Nome do Servidor: ${servidor}"
+    echo -e "Cliente: ${cliente}"
+    echo -e "Tipo do Ambiente: ${tipo_ambiente}"
+    echo -e "Informação Extra: ${informacao_extra}"
+    echo -e "Usuário Conectado: ${usuario}"
+    echo -e "Provedor Cloud: ${provedor_cloud}"
+    echo -e "----------------------------------------------------------------------------------\n"
+
+}
+
+
+function conectar_servidor() {
+    local padrao_servidor="${1}"
+    local opcao_conexao="${2}"
+    local valor_dados_servidor=$(obter_valor_dados_servidor ${padrao_servidor})
+    local ip=$(cut -d',' -f2 <<< ${valor_dados_servidor})
+    local usuario=$(cut -d',' -f7 <<< ${valor_dados_servidor})
+    local nome_key=$(cut -d',' -f8 <<< ${valor_dados_servidor})
+    local localizacao_key="${pasta_keys}/${nome_key}"
+
+    #Sugestao: se preferir que cada servidor tenha sua pasta de arquivos baixados descomentar linha abaixo
+    local pasta_local_arquivos_baixados="$HOME/temp/scp/$(cut -d',' -f5 <<< ${valor_dados_servidor})"
+    mkdir -p ${pasta_local_arquivos_baixados}
+
+    verificar_campo_obrigatório "${padrao_servidor}" "${nome_key}" "${usuario}" "${ip}"
+
+    case "$opcao_conexao" in
+        "ssh")
+            exibir_informacao_servidor "${padrao_servidor}"
+            conectar_ssh "${localizacao_key}" "${usuario}" "${ip}" "${pasta_servidor_transferencia_arquivos}"
+            ;;
+        "l2r")
+            exibir_informacao_servidor "${padrao_servidor}"
+            conectar_scp_local_remote "${localizacao_key}" "${usuario}" "${ip}" "${pasta_servidor_transferencia_arquivos}"
+            ;;
+        "r2l")
+            exibir_informacao_servidor "${padrao_servidor}"
+            conectar_scp_remote_local "${localizacao_key}" "${usuario}" "${ip}" "${pasta_servidor_transferencia_arquivos}"
+            ;;
+        *)
+            echo "opcao incorreta"
+    esac
+
+}
+
+function exibir_configuracao(){
+    echo "valor_data=${valor_data}"
+    echo "pasta_servidor_transferencia_arquivos=${pasta_servidor_transferencia_arquivos}"
+    echo "pasta_local_arquivos_baixados=${pasta_local_arquivos_baixados}" 
+    echo "pasta_keys=${pasta_keys}"
+    echo "pasta_raiz=${pasta_raiz}"
+    echo "arquivo_dados=${arquivo_dados}"
+}
+
+
+function exibir_uso(){
+    echo -e "Uso: cs [OPCAO] [PADRAO]"
+    echo -e "-----------------------------" 
+    echo -e "Lista da OPCAO"
+    echo -e ""
+    echo -e "-c = conectar ao servidor identifcado pelo PADRAO"
+    echo -e "-e = enviar arquivo para o servidor identificado pelo PADRAO"
+    echo -e "-b = baixar arquivo do servidor identificado pelo PADRAO"
+    echo -e "-i = informacoes do alias identificado pelo PADRAO"
+    echo -e "-s = exibe na tela o conteúdo do arquivo de dados dos servidores"
+    echo -e "-d = exibe a localização do arquivo dos dados"
+    echo -e "-C = exibe os parâmetros de configuração do programa"
+    echo -e "-h = exibe a ajuda do programa"
+}
+
+function validar_aspas_dupla_arquivo_configuracao (){
+    arquivo="${pasta_raiz}/config/cs.conf"
+    while IFS= read -r linha || [[ -n "$linha" ]]; do
+        quantidade_aspas_duplas_linha=$(grep -o '\"' <<< ${linha} | wc -l)
+
+        if [[ ${quantidade_aspas_duplas_linha} -ne 2 ]];then
+            return 1
+        else 
+            return 0
+        fi
+    done < "${arquivo}"
+}
+
+
+#function validar_valor_variaveis_configuracao () {
+#}

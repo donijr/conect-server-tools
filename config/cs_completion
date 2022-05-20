@@ -1,0 +1,28 @@
+_cs() {
+    source /opt/conect-server-tools/config/cs.conf
+    local cur prev opts atalhos opcoes
+
+    COMPREPLY=()
+    atalhos=$(cat "${arquivo_dados}" | grep -v identificador | cut -d',' -f1)
+    app_opcoes="-c -e -b -i -p -d -h"
+    #cur="${COMP_WORDS[COMP_CWORD]}"
+    cur=`_get_cword`
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    atalhos_opcoes="${atalhos}"
+
+    case ${prev} in
+    cs)
+        case ${cur} in
+        -*)
+            COMPREPLY=( $(compgen -W "${app_opcoes}" -- ${cur}) )
+            #return 0
+        ;;
+        esac
+    ;;
+    -c | -e | -b | -i )
+        COMPREPLY=( $(compgen -W "${atalhos_opcoes}" -- ${cur}) )
+        return 0
+        ;;
+    esac
+  }
+  complete -F _cs cs 
