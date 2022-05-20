@@ -1,5 +1,6 @@
 _cs() {
-    source /opt/conect-server-tools/config/cs.conf
+    pasta_config="/opt/conect-server-tools/config"
+    source ${pasta_config}/cs.conf
     local cur prev opts atalhos opcoes
 
     COMPREPLY=()
