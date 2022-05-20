@@ -30,13 +30,15 @@ if [[  -e "${pasta_raiz}/config/cs.conf" ]]; then
     source ${pasta_raiz}/config/cs.conf 
 elif [[ ! -e "${pasta_raiz}/config/cs.conf" ]]; then
     # Se arquivo não existir então cria 
-    echo "Arquivo de configuração não existe. Crianado arquivo ${pasta_raiz}/config/cs.conf"
-    sudo bash -c ">'${pasta_raiz}/config/c s.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[0]}=\"\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[1]}=\"\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[2]}=\"\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[3]}=\"\"' >> '${pasta_raiz}/config/cs.conf'"
+    echo "Arquivo de configuração não existe."
+    echo "Criando arquivo ${pasta_raiz}/config/cs.conf"
+    sudo bash -c ">'${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[0]}=\""${USER}"\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[1]}=\"${padrao_pasta_local_arquivos_baixados}\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[2]}=\"${HOME}/.ssh\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[3]}=\"${pasta_raiz}/dados/cs_dados_servidores.csv\"' >> '${pasta_raiz}/config/cs.conf'"
     echo "Arquivo ${pasta_raiz}/config/cs.conf criado"
+    exit 0
 else
     echo "Arquivo de configuração cs.conf não existe."
     echo "Por favor, criar o arquivo de configuração em /opt/conect-server-tools/config/"
