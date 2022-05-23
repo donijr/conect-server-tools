@@ -99,7 +99,7 @@ pasta_saida="${pasta_raiz}/saida"
 valor_data=$(date +%d-%m-%y)
 
 OPTIND=1
-while getopts "c:e:b:i:sdhC" OPCAO
+while getopts ":c:e:b:i:sdhC" OPCAO
 do
     export padrao_servidor=$OPTARG
 
