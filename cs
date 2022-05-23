@@ -20,6 +20,20 @@ vetor_parametro_arquivo_configuracao=("pasta_servidor_transferencia_arquivos"
                                        "pasta_keys"
                                        "arquivo_dados"
                                       )
+
+
+erro_saida_mkdir=""
+
+##### FUNCOES #######
+function criar_arquivo_configuracao (){
+    sudo bash -c ">'${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[0]}=\""${USER}"\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[1]}=\"${padrao_pasta_local_arquivos_baixados}\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[2]}=\"${HOME}/.ssh\"' >> '${pasta_raiz}/config/cs.conf'"
+    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[3]}=\"${pasta_raiz}/dados/cs_dados_servidores.csv\"' >> '${pasta_raiz}/config/cs.conf'"
+}
+
+
 ###########################################################################################
 #### PROGRAMA ####
 ##################
@@ -32,11 +46,7 @@ elif [[ ! -e "${pasta_raiz}/config/cs.conf" ]]; then
     # Se arquivo não existir então cria 
     echo "Arquivo de configuração não existe."
     echo "Criando arquivo ${pasta_raiz}/config/cs.conf"
-    sudo bash -c ">'${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[0]}=\""${USER}"\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[1]}=\"${padrao_pasta_local_arquivos_baixados}\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[2]}=\"${HOME}/.ssh\"' >> '${pasta_raiz}/config/cs.conf'"
-    sudo bash -c "echo '${vetor_parametro_arquivo_configuracao[3]}=\"${pasta_raiz}/dados/cs_dados_servidores.csv\"' >> '${pasta_raiz}/config/cs.conf'"
+    criar_arquivo_configuracao
     echo "Arquivo ${pasta_raiz}/config/cs.conf criado"
     exit 0
 else
@@ -44,26 +54,12 @@ else
     echo "Por favor, criar o arquivo de configuração em /opt/conect-server-tools/config/"
     exit 1
 fi
-  
-# Atribuindo valores padrão para vairiáveis de configuração se forem vazias ou nulas
-[[ ${pasta_servidor_transferencia_arquivos:="${USER}"} ]]
-[[ ${pasta_local_arquivos_baixados:="${padrao_pasta_local_arquivos_baixados}"} ]] #sugestao de caminho pra pasta 
-[[ ${pasta_keys:="${HOME}/.ssh"} ]]
-[[ ${arquivo_dados:="${pasta_raiz}/dados/cs_dados_servidores.csv"} ]]
-
-pasta_app="${pasta_raiz}/app"
-pasta_dados="${pasta_raiz}/dados"
-pasta_config="${pasta_raiz}/config"
-pasta_saida="${pasta_raiz}/saida"
-valor_data=$(date +%d-%m-%y)
-
-erro_saida_mkdir=""
 
 # Criando pasta de destino para arquivos baixados
 if [[ "${pasta_local_arquivos_baixados}" == "${padrao_pasta_local_arquivos_baixados}" ]]; then
-    mkdir -p "${padrao_pasta_local_arquivos_baixados}"
+    mkdir -p "${padrao_pasta_local_arquivos_baixados}" &> /dev/null
     erro_saida_mkdir=$(echo $?)
-    if [[ "${erro_saida_mkdir}" -eq "1" ]]; then
+    if [[ "${erro_saida_mkdir}" -ne "0" ]]; then
         echo "Não foi possível criar pasta ${padrao_pasta_local_arquivos_baixados}"
         exit 1
     fi 
@@ -90,8 +86,20 @@ if [[ ! -d ${pasta_keys} ]]; then
     exit 1
 fi 
 
+# Atribuindo valores padrão para vairiáveis de configuração se forem vazias ou nulas
+[[ ${pasta_servidor_transferencia_arquivos:="${USER}"} ]]
+[[ ${pasta_local_arquivos_baixados:="${padrao_pasta_local_arquivos_baixados}"} ]] #sugestao de caminho pra pasta 
+[[ ${pasta_keys:="${HOME}/.ssh"} ]]
+[[ ${arquivo_dados:="${pasta_raiz}/dados/cs_dados_servidores.csv"} ]]
+
+pasta_app="${pasta_raiz}/app"
+pasta_dados="${pasta_raiz}/dados"
+pasta_config="${pasta_raiz}/config"
+pasta_saida="${pasta_raiz}/saida"
+valor_data=$(date +%d-%m-%y)
+
 OPTIND=1
-while getopts ":c:e:b:i:sdhC" OPCAO
+while getopts "c:e:b:i:sdhC" OPCAO
 do
     export padrao_servidor=$OPTARG
 
