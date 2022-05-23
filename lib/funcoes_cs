@@ -68,7 +68,7 @@ function verificar_campo_obrigatório (){
     local ip=${4}
 
     if [[ -z ${identificador} ]]; then
-        echo "Campo idendificador está vazio. Por favor verificar arquivo ${arquivo_dados}"
+        echo "Campo identificador está vazio. Por favor verificar arquivo ${arquivo_dados}"
         exit 1
     elif [[ -z ${nome_key} ]]; then
         echo "Campo nomeKey está vazio. Por favor verificar arquivo ${arquivo_dados}"
@@ -229,7 +229,7 @@ function conectar_servidor() {
     local localizacao_key="${pasta_keys}/${nome_key}"
 
     #Sugestao: se preferir que cada servidor tenha sua pasta de arquivos baixados descomentar linha abaixo
-    local pasta_local_arquivos_baixados="$HOME/temp/scp/$(cut -d',' -f5 <<< ${valor_dados_servidor})"
+    #local pasta_local_arquivos_baixados="${pasta_local_arquivos_baixados}/$(cut -d',' -f5 <<< ${valor_dados_servidor})"
     mkdir -p ${pasta_local_arquivos_baixados}
 
     verificar_campo_obrigatório "${padrao_servidor}" "${nome_key}" "${usuario}" "${ip}"
@@ -264,7 +264,7 @@ function exibir_configuracao(){
 
 
 function exibir_uso(){
-    echo -e "Uso: cs [OPCAO] [PADRAO]"
+    echo -e "Uso: cs OPCAO [PADRAO]"
     echo -e "-----------------------------" 
     echo -e "Lista da OPCAO"
     echo -e ""
@@ -279,10 +279,10 @@ function exibir_uso(){
 }
 
 function validar_aspas_dupla_arquivo_configuracao (){
-    arquivo="${pasta_raiz}/config/cs.conf"
+    #${1} = localização do arquivo de configuração
+    arquivo="${1}"
     while IFS= read -r linha || [[ -n "$linha" ]]; do
         quantidade_aspas_duplas_linha=$(grep -o '\"' <<< ${linha} | wc -l)
-
         if [[ ${quantidade_aspas_duplas_linha} -ne 2 ]];then
             return 1
         else 
@@ -290,6 +290,7 @@ function validar_aspas_dupla_arquivo_configuracao (){
         fi
     done < "${arquivo}"
 }
+
 
 
 #function validar_valor_variaveis_configuracao () {
